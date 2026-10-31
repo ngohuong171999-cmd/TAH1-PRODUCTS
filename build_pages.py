@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-Tạo trang riêng cho từng sản phẩm để link chia sẻ (Zalo, Facebook, Messenger...) có
-ảnh xem trước vuông 1:1, tiêu đề = PRODUCT_NAME, dòng phụ = PROV_COD.
-
-Đọc danh sách sản phẩm đang ON từ Apps Script (?list=1), rồi với mỗi sản phẩm tạo:
-    p/<PROV_COD>/index.html   trang sản phẩm (là bản sao của index.html + thẻ Open Graph)
-    p/<PROV_COD>/thumb.jpg    ảnh xem trước 600x600 (lấy từ cột PHOTO_DIM, hoặc PHOTO_1)
-và file share-links.csv liệt kê link chia sẻ của từng sản phẩm.
+Tạo trang riêng cho từng sản phẩm để link chia sẻ (Zalo, Facebook, Messenger...) có:
+- Ảnh xem trước vuông 1:1 (lấy từ cột PHOTO_DIM, hoặc PHOTO_1)
+- Tiêu đề link = PROV_COD
+- Dòng chữ xám nhạt ở dưới = PRODUCT_NAME
 """
 import csv, html, io, json, os, re, shutil, sys, urllib.parse, urllib.request
 from pathlib import Path
@@ -66,7 +63,7 @@ def image_candidates(u):
 
 
 def make_thumb(url, dest):
-    """Tải ảnh, đặt vào khung vuông nền trắng (không cắt mất chú thích kích thước), lưu JPG 600x600."""
+    """Tải ảnh, đặt vào khung vuông 1:1 nền trắng, lưu JPG 600x600."""
     for cand in image_candidates(url):
         try:
             im = Image.open(io.BytesIO(http_get(cand)))
@@ -95,26 +92,31 @@ def clean_name(name):
     return re.sub(r"\s*#\s*", " / ", str(name)).strip()
 
 
-def og_block(name, code, page_url, img_url):
+def og_block(code, name, page_url, img_url):
     e = lambda s: html.escape(str(s), quote=True)
+    # Tiêu đề chính = PROV_COD (code), dòng chữ xám nhạt ở dưới = PRODUCT_NAME (name)
     tags = [
         '<meta property="og:type" content="website">',
         '<meta property="og:site_name" content="Tan Hoa 1 Co., Ltd.">',
-        f'<meta property="og:title" content="{e(name)}">',
-        f'<meta property="og:description" content="{e(code)}">',
+        f'<meta property="og:title" content="{e(code)}">',
+        f'<meta property="og:description" content="{e(name)}">',
         f'<meta property="og:url" content="{e(page_url)}">',
-        f'<meta name="description" content="{e(code)}">',
+        f'<meta name="description" content="{e(name)}">',
     ]
     if img_url:
         tags += [
             f'<meta property="og:image" content="{e(img_url)}">',
+            f'<meta property="og:image:secure_url" content="{e(img_url)}">',
             '<meta property="og:image:type" content="image/jpeg">',
             f'<meta property="og:image:width" content="{THUMB}">',
             f'<meta property="og:image:height" content="{THUMB}">',
             '<meta name="twitter:card" content="summary">',
             f'<meta name="twitter:image" content="{e(img_url)}">',
         ]
-    tags += [f'<meta name="twitter:title" content="{e(name)}">', f'<meta name="twitter:description" content="{e(code)}">']
+    tags += [
+        f'<meta name="twitter:title" content="{e(code)}">',
+        f'<meta name="twitter:description" content="{e(name)}">',
+    ]
     tags.append(f"<script>window.TH_ID={json.dumps(code)};</script>")
     return "\n".join(tags)
 
@@ -149,8 +151,8 @@ def main():
         page_url = f"{base}p/{code}/"
         img_url = f"{page_url}thumb.jpg" if thumb_ok else ""
 
-        page = template.replace("<!--OG-->", og_block(name, code, page_url, img_url), 1)
-        page = re.sub(r"<title>.*?</title>", lambda m: f"<title>{html.escape(name)}</title>", page, count=1, flags=re.S)
+        page = template.replace("<!--OG-->", og_block(code, name, page_url, img_url), 1)
+        page = re.sub(r"<title>.*?</title>", lambda m: f"<title>{html.escape(code)} – {html.escape(name)}</title>", page, count=1, flags=re.S)
         folder.mkdir(parents=True, exist_ok=True)
         (folder / "index.html").write_text(page, encoding="utf-8")
         keep.add(code)
