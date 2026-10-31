@@ -1,0 +1,30 @@
+name: Build product pages
+
+on:
+  workflow_dispatch:            # bấm tay: tab Actions > Build product pages > Run workflow
+  schedule:
+    - cron: "0 */6 * * *"       # tự chạy mỗi 6 giờ để lấy sản phẩm mới / ảnh mới từ sheet
+  push:
+    paths:
+      - index.html
+      - build_pages.py
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow
+      - run: python build_pages.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "Update product pages" && git push)
