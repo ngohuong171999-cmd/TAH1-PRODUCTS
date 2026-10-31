@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TH-001 – Teak Sun Lounger | Tan Hoa 1 Co., Ltd.</title>
+<title>Tan Hoa 1 Co., Ltd. – Outdoor Furniture</title>
+<!--OG-->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
 <style>
 :root{--bg:#FFFFFF;--cream:#FAF3E9;--ink:#000000;--gold:#BD9660;--mute:#000000b3;--line:#bd966066;
@@ -68,6 +69,7 @@ footer a{color:var(--ink);text-decoration-color:var(--gold);text-underline-offse
 .social a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .social svg{width:22px;height:22px;fill:var(--ink)}
 .pending .tabs,.pending .panel{visibility:hidden}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -191,6 +193,15 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi
     return String(v).split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
   }
   function driveId(u){var m=String(u).match(/drive\.google\.com\/.*?\/d\/([\w-]+)/)||String(u).match(/drive\.google\.com\/.*?[?&]id=([\w-]+)/);return m?m[1]:null;}
+  function loadImg(im,u){
+    var id=driveId(u),i=0,list=id?['https://lh3.googleusercontent.com/d/'+id+'=w1600','https://drive.google.com/thumbnail?id='+id+'&sz=w1600','https://drive.google.com/uc?export=view&id='+id]:[u];
+    im.onerror=function(){
+      i++;
+      if(i<list.length){im.src=list[i];}
+      else{im.onerror=null;im.style.display='none';if(im.parentNode)im.parentNode.appendChild(el('span',null,'Image unavailable'));}
+    };
+    im.src=list[0];
+  }
   function imgUrl(u){var id=driveId(u);return id?'https://lh3.googleusercontent.com/d/'+id+'=w1600':u;}
   function section(title){
     var r=null;
@@ -234,7 +245,7 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi
     var fresh=car.cloneNode(false);fresh.innerHTML='';
     items.forEach(function(it,i){
       var f=el('figure'),ph=el('div','ph'),im=new Image();
-      im.src=imgUrl(it.url);im.alt=it.cap||(alt+' '+(i+1));im.loading=i?'lazy':'eager';im.referrerPolicy='no-referrer';
+      loadImg(im,it.url);im.alt=it.cap||(alt+' '+(i+1));im.loading='eager';im.referrerPolicy='no-referrer';
       ph.appendChild(im);f.appendChild(ph);
       f.appendChild(el('figcaption',null,it.cap||''));
       fresh.appendChild(f);
@@ -261,7 +272,7 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi
     var s=document.querySelector('.stage');if(!s)return;
     s.hidden=!u;if(!u)return;
     s.innerHTML='';s.style.padding='0';
-    var im=new Image();im.src=imgUrl(u);im.alt='Product photo';im.referrerPolicy='no-referrer';
+    var im=new Image();loadImg(im,u);im.alt='Product photo';im.referrerPolicy='no-referrer';
     im.style.cssText='width:100%;height:100%;object-fit:contain;display:block';s.appendChild(im);
   }
 
@@ -280,7 +291,8 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi
     var photos=[1,2,3,4].map(function(i){return n['photo'+i];}).filter(Boolean).map(function(u,i){return{url:u,cap:'Photo '+(i+1)};});
     var drw=[['drawingfront','Front view'],['drawingside','Side view'],['drawingtop','Top view'],['drawingperspective','Perspective view']]
       .filter(function(x){return n[x[0]];}).map(function(x){return{url:n[x[0]],cap:x[1]};});
-    fillHero(photos.length?photos[0].url:'');
+    var dimKey=Object.keys(n).filter(function(k){return /photo.*dim|dim.*photo/.test(k);})[0];
+    fillHero((dimKey&&n[dimKey])||n.photo1||'');
     fillCarousel('technical drawings',drw,'Drawing');
     fillCarousel('product photos',photos,'Photo');
     fillVideo(n.videoclip||'');
@@ -291,7 +303,7 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi
 
   /* ---------- Load from Apps Script (also counts the scan) ---------- */
   var q=new URLSearchParams(location.search);
-  var id=(q.get('id')||q.get('code')||location.hash.replace('#','')).trim();
+  var id=(window.TH_ID||q.get('id')||q.get('code')||location.hash.replace('#','')).trim();
   if(!id){message('Missing product code. Please scan the QR code on the product again.');return;}
 
   var key='th_scan_'+id,counted=false;
@@ -310,7 +322,7 @@ var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi
     .then(function(r){return r.text().then(function(t){return{status:r.status,text:t};});})
     .then(function(x){
       var j=null;try{j=JSON.parse(x.text);}catch(e){}
-      if(debug)showDebug('HTTP '+x.status+'\n'+x.text.slice(0,900));
+      if(debug){var sm='';try{var pj=(JSON.parse(x.text).product)||{};Object.keys(pj).forEach(function(k){if(/photo|drawing|video/i.test(k))sm+=k+': '+(pj[k]||'(EMPTY)')+'\n';});}catch(e){}showDebug('HTTP '+x.status+'\nIMAGE FIELDS:\n'+sm+'\nRAW:\n'+x.text.slice(0,1500));}
       if(!j){message(generic);if(debug)showDebug('Reply is not JSON: Apps Script is probably still the OLD version, or access is not "Anyone".');return;}
       try{sessionStorage.setItem(key,'1');}catch(e){}
       if(j.result==='Success'&&j.product)render(j.product);
