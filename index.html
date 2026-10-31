@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="pending">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -67,6 +67,7 @@ footer a{color:var(--ink);text-decoration-color:var(--gold);text-underline-offse
 .social a{width:44px;height:44px;border:1.5px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center}
 .social a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .social svg{width:22px;height:22px;fill:var(--ink)}
+.pending .tabs,.pending .panel{visibility:hidden}
 </style>
 </head>
 <body>
@@ -161,8 +162,7 @@ footer a{color:var(--ink);text-decoration-color:var(--gold);text-underline-offse
 <script>
 /* ===== CONFIG ===== */
 var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMVCfcs_tqQive-_7XfhuTDlhyz7XS4nH_M5XmlLxZwZTTI_qYjbRKrTyzTN-de6or/exec";
-var DEFAULT_CODE = "TH-001";   /* used when the URL has no ?code= */
-/* QR link format: https://<user>.github.io/<repo>/?code=TH-001 */
+/* QR link format: https://<user>.github.io/<repo>/?id=<PROV_COD>   e.g. ?id=10DGCH0464SKL0467 */
 
 (function(){
   /* ---------- UI: carousel counter + tabs ---------- */
@@ -173,7 +173,6 @@ var DEFAULT_CODE = "TH-001";   /* used when the URL has no ?code= */
       if(cnt)cnt.textContent=(Math.min(i,n-1)+1)+' / '+n;
     },{passive:true});
   }
-  document.querySelectorAll('.car').forEach(bindCar);
   var tabs=document.querySelectorAll('[role="tab"]');
   tabs.forEach(function(t){
     t.addEventListener('click',function(){
@@ -187,62 +186,57 @@ var DEFAULT_CODE = "TH-001";   /* used when the URL has no ?code= */
 
   /* ---------- Helpers ---------- */
   function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;}
-  function pick(o,keys){for(var i=0;i<keys.length;i++){var v=o[keys[i]];if(v!==undefined&&v!==null&&v!=='')return v;}return null;}
   function lines(v){
-    if(v==null)return[];
-    if(Array.isArray(v))return v.map(String).filter(Boolean);
-    return String(v).split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
-  }
-  function urls(v){
-    if(v==null)return[];
-    if(Array.isArray(v))return v;
-    return String(v).split(/[\r\n,|]+/).map(function(s){return s.trim();}).filter(Boolean);
+    if(v==null||v==='')return[];
+    return String(v).split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean);
   }
   function driveId(u){var m=String(u).match(/drive\.google\.com\/.*?\/d\/([\w-]+)/)||String(u).match(/drive\.google\.com\/.*?[?&]id=([\w-]+)/);return m?m[1]:null;}
-  function imgUrl(u){var id=driveId(u);return id?'https://lh3.googleusercontent.com/d/'+id:u;}
+  function imgUrl(u){var id=driveId(u);return id?'https://lh3.googleusercontent.com/d/'+id+'=w1600':u;}
   function section(title){
-    var hs=document.querySelectorAll('.media h2'),r=null;
-    hs.forEach(function(h){if(h.textContent.toLowerCase().indexOf(title)===0)r=h.parentNode;});
+    var r=null;
+    document.querySelectorAll('.media h2').forEach(function(h){if(h.textContent.toLowerCase().indexOf(title)===0)r=h.parentNode;});
     return r;
   }
-  function accBody(name){
+  function acc(name){
     var r=null;
-    document.querySelectorAll('details').forEach(function(d){
-      if(d.querySelector('summary').textContent.trim().toLowerCase()===name)r=d.querySelector('.body');
-    });
+    document.querySelectorAll('details').forEach(function(d){if(d.querySelector('summary').textContent.trim().toLowerCase()===name)r=d;});
     return r;
+  }
+  function message(text){
+    document.documentElement.classList.remove('pending');
+    document.querySelectorAll('.tabs,.panel').forEach(function(n){n.style.display='none';});
+    var m=el('p','note',text);
+    document.querySelector('header').insertAdjacentElement('afterend',m);
   }
 
   /* ---------- Renderers ---------- */
   function fillText(name,list){
-    var b=accBody(name);if(!b||!list.length)return;
-    b.innerHTML='';list.forEach(function(t){b.appendChild(el('p',null,t));});
+    var d=acc(name);if(!d)return;
+    d.hidden=!list.length;if(!list.length)return;
+    var b=d.querySelector('.body');b.innerHTML='';
+    list.forEach(function(t){b.appendChild(el('p',null,t));});
   }
-  function fillDims(v){
-    var b=accBody('dimensions');if(!b||!v)return;
-    var rows=[];
-    if(Array.isArray(v)){
-      v.forEach(function(x){
-        if(x&&typeof x==='object')rows.push([pick(x,['label','name','key']),pick(x,['value','val'])]);
-        else{var p=String(x).split(':');rows.push([p[0].trim(),(p.slice(1).join(':')||'').trim()]);}
-      });
-    }else if(typeof v==='object'){Object.keys(v).forEach(function(k){rows.push([k,v[k]]);});}
-    else{lines(v).forEach(function(s){var p=s.split(':');rows.push([p[0].trim(),(p.slice(1).join(':')||'').trim()]);});}
-    if(!rows.length)return;
-    var dl=el('dl');rows.forEach(function(r){dl.appendChild(el('dt',null,r[0]));dl.appendChild(el('dd',null,r[1]));});
-    b.innerHTML='';b.appendChild(dl);
+  function fillDims(list){
+    var d=acc('dimensions');if(!d)return;
+    d.hidden=!list.length;if(!list.length)return;
+    var dl=el('dl');
+    list.forEach(function(x){
+      var k=x.indexOf(':');
+      if(k>0&&k<x.length-1){dl.appendChild(el('dt',null,x.slice(0,k).trim()));dl.appendChild(el('dd',null,x.slice(k+1).trim()));}
+      else{var dt=el('dt',null,x);dt.style.gridColumn='1 / -1';dl.appendChild(dt);}
+    });
+    var b=d.querySelector('.body');b.innerHTML='';b.appendChild(dl);
   }
   function fillCarousel(title,items,alt){
-    var sec=section(title);if(!sec||!items.length)return;
+    var sec=section(title);if(!sec)return;
+    sec.hidden=!items.length;if(!items.length)return;
     var car=sec.querySelector('.car'),cnt=sec.querySelector('.cnt');
     var fresh=car.cloneNode(false);fresh.innerHTML='';
     items.forEach(function(it,i){
-      var u=typeof it==='object'?pick(it,['url','src','link']):it;
-      var cap=typeof it==='object'?(pick(it,['caption','title','name'])||''):'';
       var f=el('figure'),ph=el('div','ph'),im=new Image();
-      im.src=imgUrl(u);im.alt=cap||(alt+' '+(i+1));im.loading=i?'lazy':'eager';im.referrerPolicy='no-referrer';
+      im.src=imgUrl(it.url);im.alt=it.cap||(alt+' '+(i+1));im.loading=i?'lazy':'eager';im.referrerPolicy='no-referrer';
       ph.appendChild(im);f.appendChild(ph);
-      if(cap)f.appendChild(el('figcaption',null,cap));
+      f.appendChild(el('figcaption',null,it.cap||''));
       fresh.appendChild(f);
     });
     car.parentNode.replaceChild(fresh,car);
@@ -250,63 +244,81 @@ var DEFAULT_CODE = "TH-001";   /* used when the URL has no ?code= */
     bindCar(fresh);
   }
   function fillVideo(u){
-    var box=document.querySelector('.vid .ph');if(!box||!u)return;
-    box.innerHTML='';box.style.padding='0';box.style.border='0';
-    var id=driveId(u);
-    if(id){
-      var f=document.createElement('iframe');
-      f.src='https://drive.google.com/file/d/'+id+'/preview';
-      f.allow='autoplay; fullscreen';f.allowFullscreen=true;f.title='Product video';
-      f.style.cssText='width:100%;height:100%;border:0';
-      box.appendChild(f);
-    }else if(/youtu\.?be/.test(u)){
-      var m=u.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{6,})/);
-      if(m){var y=document.createElement('iframe');y.src='https://www.youtube.com/embed/'+m[1];y.allowFullscreen=true;y.title='Product video';y.style.cssText='width:100%;height:100%;border:0';box.appendChild(y);}
+    var sec=document.querySelector('.vid');if(!sec)return;
+    sec.hidden=!u;if(!u)return;
+    var box=sec.querySelector('.ph');box.innerHTML='';box.style.padding='0';box.style.border='0';
+    var id=driveId(u),yt=String(u).match(/(?:v=|youtu\.be\/|embed\/)([\w-]{6,})/),src=null;
+    if(id)src='https://drive.google.com/file/d/'+id+'/preview';
+    else if(/youtu\.?be/.test(u)&&yt)src='https://www.youtube.com/embed/'+yt[1];
+    if(src){
+      var f=document.createElement('iframe');f.src=src;f.allow='autoplay; fullscreen';f.allowFullscreen=true;f.title='Product video';
+      f.style.cssText='width:100%;height:100%;border:0';box.appendChild(f);
     }else{
-      var v=document.createElement('video');v.src=u;v.controls=true;v.playsInline=true;v.preload='metadata';
-      box.appendChild(v);
+      var v=document.createElement('video');v.src=u;v.controls=true;v.playsInline=true;v.preload='metadata';box.appendChild(v);
     }
   }
   function fillHero(u){
-    var s=document.querySelector('.stage');if(!s||!u)return;
+    var s=document.querySelector('.stage');if(!s)return;
+    s.hidden=!u;if(!u)return;
     s.innerHTML='';s.style.padding='0';
-    var im=new Image();im.src=imgUrl(u);im.alt='Product photo';im.style.cssText='width:100%;height:100%;object-fit:contain;display:block';
-    im.referrerPolicy='no-referrer';s.appendChild(im);
+    var im=new Image();im.src=imgUrl(u);im.alt='Product photo';im.referrerPolicy='no-referrer';
+    im.style.cssText='width:100%;height:100%;object-fit:contain;display:block';s.appendChild(im);
   }
 
-  /* ---------- Load product from Apps Script ---------- */
-  function normalize(j,code){
-    if(!j)return null;
-    if(j.error)return null;
-    var d=j.product||j.data||j.result||j;
-    if(Array.isArray(d)){
-      d=d.filter(function(r){var c=pick(r,['code','id','item_no','sku','Item No.']);return c&&String(c).toLowerCase()===code.toLowerCase();})[0]||d[0];
-    }
-    return d&&typeof d==='object'?d:null;
+  /* ---------- Map Google Sheet columns -> page ---------- */
+  function render(p){
+    var n={};Object.keys(p).forEach(function(k){n[k.toLowerCase().replace(/[^a-z0-9]/g,'')]=p[k];});
+    var name=String(n.productname||'').replace(/\s*#\s*/g,' / ').trim();
+    var code=n.provcod||'';
+    if(name){document.getElementById('pName').textContent=name;document.title=name+' | Tan Hoa 1 Co., Ltd.';}
+    document.getElementById('pCode').textContent='Item No.: '+code+(n.drawingcode?'  ·  Drawing code: '+n.drawingcode:'');
+    fillText('description',lines(n.description));
+    fillDims(lines(n.overalldimensions).concat(lines(n.seatdimensions),lines(n.weight)));
+    fillText('materials',lines(n.materials));
+    fillText('features',lines(n.finishfeatures));
+    fillText('warranty',lines(n.warranty));
+    var photos=[1,2,3,4].map(function(i){return n['photo'+i];}).filter(Boolean).map(function(u,i){return{url:u,cap:'Photo '+(i+1)};});
+    var drw=[['drawingfront','Front view'],['drawingside','Side view'],['drawingtop','Top view'],['drawingperspective','Perspective view']]
+      .filter(function(x){return n[x[0]];}).map(function(x){return{url:n[x[0]],cap:x[1]};});
+    fillHero(photos.length?photos[0].url:'');
+    fillCarousel('technical drawings',drw,'Drawing');
+    fillCarousel('product photos',photos,'Photo');
+    fillVideo(n.videoclip||'');
+    if(!drw.length&&!photos.length&&!n.videoclip)document.getElementById('t2').style.display='none';
+    document.querySelectorAll('.note').forEach(function(x){x.hidden=true;});
+    document.documentElement.classList.remove('pending');
   }
-  function render(d,code){
-    var name=pick(d,['name','title','product_name','Name']);
-    var c=pick(d,['code','id','item_no','sku','Item No.'])||code;
-    if(name){document.getElementById('pName').textContent=name;document.title=c+' – '+name+' | Tan Hoa 1 Co., Ltd.';}
-    document.getElementById('pCode').textContent='Item No.: '+c;
-    fillText('description',lines(pick(d,['description','Description'])));
-    fillDims(pick(d,['dimensions','Dimensions','size']));
-    fillText('materials',lines(pick(d,['materials','Materials','material'])));
-    fillText('features',lines(pick(d,['features','Features'])));
-    fillText('warranty',lines(pick(d,['warranty','Warranty'])));
-    fillHero(pick(d,['hero','main_image','image','cover']));
-    fillCarousel('technical drawings',urls(pick(d,['drawings','technical_drawings','Drawings'])),'Drawing');
-    fillCarousel('product photos',urls(pick(d,['photos','images','Photos'])),'Photo');
-    fillVideo(pick(d,['video','clip','Video']));
-    document.querySelectorAll('.note').forEach(function(n){n.hidden=true;});
-  }
+
+  /* ---------- Load from Apps Script (also counts the scan) ---------- */
   var q=new URLSearchParams(location.search);
-  var code=(q.get('code')||q.get('id')||location.hash.replace('#','')||DEFAULT_CODE).trim();
-  var sep=SCRIPT_URL.indexOf('?')>-1?'&':'?';
-  fetch(SCRIPT_URL+sep+'code='+encodeURIComponent(code)+'&id='+encodeURIComponent(code),{redirect:'follow'})
-    .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
-    .then(function(j){var d=normalize(j,code);if(d)render(d,code);else console.warn('Apps Script returned no product for',code,j);})
-    .catch(function(e){console.warn('Could not load product data, showing sample content.',e);});
+  var id=(q.get('id')||q.get('code')||location.hash.replace('#','')).trim();
+  if(!id){message('Missing product code. Please scan the QR code on the product again.');return;}
+
+  var key='th_scan_'+id,counted=false;
+  try{counted=!!sessionStorage.getItem(key);}catch(e){}   /* count one scan per browser session */
+  var url=SCRIPT_URL+(SCRIPT_URL.indexOf('?')>-1?'&':'?')+'id='+encodeURIComponent(id)+'&count='+(counted?'0':'1');
+
+  var debug=q.get('debug')==='1';
+  function showDebug(info){
+    var pre=el('pre',null,'DEBUG\nURL: '+url+'\n'+info);
+    pre.style.cssText='margin:20px;padding:12px;background:var(--cream);border:1px solid var(--line);font:12px/1.4 monospace;white-space:pre-wrap;word-break:break-all';
+    document.querySelector('.wrap').appendChild(pre);
+  }
+  var generic='Unable to load product information. Please check your connection and try again.';
+
+  fetch(url,{redirect:'follow'})
+    .then(function(r){return r.text().then(function(t){return{status:r.status,text:t};});})
+    .then(function(x){
+      var j=null;try{j=JSON.parse(x.text);}catch(e){}
+      if(debug)showDebug('HTTP '+x.status+'\n'+x.text.slice(0,900));
+      if(!j){message(generic);if(debug)showDebug('Reply is not JSON: Apps Script is probably still the OLD version, or access is not "Anyone".');return;}
+      try{sessionStorage.setItem(key,'1');}catch(e){}
+      if(j.result==='Success'&&j.product)render(j.product);
+      else if(j.result==='Disabled')message('This product page is currently unavailable. Please contact Tan Hoa 1 Co., Ltd.');
+      else if(j.result==='NotFound')message('Product not found. Please contact Tan Hoa 1 Co., Ltd.');
+      else message('Missing product code. Please scan the QR code on the product again.');
+    })
+    .catch(function(err){message(generic);if(debug)showDebug('Request blocked: '+err+'\nUsually means the web app access is not set to "Anyone".');});
 })();
 </script>
 </body>
