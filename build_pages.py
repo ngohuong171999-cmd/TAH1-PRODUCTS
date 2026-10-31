@@ -18,7 +18,7 @@ except ImportError:
 
 SCRIPT_URL = os.environ.get(
     "SCRIPT_URL",
-    "https://script.google.com/macros/s/AKfycbwWtOqRSuMyn63XaN7c1Hi6vzTWUelVcE0r9i8AFuT0YuA5KEEnsPtSlfZOlyH-TVKI/exec",
+    "https://script.google.com/macros/s/AKfycbzL5rmov5OcDbzFXPtyFjIHE_EetRVE3AwISyUXg3LTk79ZXzhQSDvIdrR0JCMmL7Nv/exec",
 )
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "p"
